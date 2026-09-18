@@ -1,0 +1,68 @@
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: weather-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-change-me-please}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-weather}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-weather}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-weather-super-secret-token-change-me}
+      DOCKER_INFLUXDB_INIT_RETENTION: 0
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_POLL_INTERVAL: ${NEXT_PUBLIC_POLL_INTERVAL:-10000}
+    container_name: weather-web
+    restart: unless-stopped
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      INFLUX_URL: ${INFLUX_URL:-http://influxdb:8086}
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN:-weather-super-secret-token-change-me}
+      INFLUX_ORG: ${INFLUXDB_ORG:-weather}
+      INFLUX_BUCKET: ${INFLUXDB_BUCKET:-weather}
+      WEATHER_API_KEY: ${WEATHER_API_KEY:-my-super-secret-api-key}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ONLINE_THRESHOLD_MS: ${ONLINE_THRESHOLD_MS:-300000}
+
+  # Optional weather agent simulator. Enable with: docker compose --profile agent up
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: weather-agent
+    profiles: ["agent"]
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      API_URL: ${API_URL:-http://web:3000/api/weather}
+      API_KEY: ${API_KEY:-my-super-secret-api-key}
+      DEVICE: ${DEVICE:-REMOTE-STATION-01}
+      SITE: ${SITE:-RemoteTestSite}
+      INTERVAL: ${INTERVAL:-10}
+
+volumes:
+  influxdb-data:
+  influxdb-config:

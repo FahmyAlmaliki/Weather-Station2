@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# production
+dist/
+
+# env
+.env
+.env.local
+.env*.local
+
+# misc
+.DS_Store
+*.pem
+*.log
+npm-debug.log*
+
+# docker volumes
+data/
+influxdb-data/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+agent/.env
